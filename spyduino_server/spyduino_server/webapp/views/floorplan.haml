@@ -1,0 +1,11 @@
+#svg-content
+  =File.read(File.join("webapp","public","grundriss_#{@floorplan}.svg"))
+
+-@positions.each do |pos|
+  :javascript
+    window.scaleFactor = #{@scaleFactor};
+    show_position(#{pos.x},#{pos.y});
+
+  -@aps.each do |ap|
+    :javascript
+      show_ap(#{ap.position[0]},#{ap.position[1]});

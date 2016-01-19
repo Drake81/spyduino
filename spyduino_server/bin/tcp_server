@@ -1,0 +1,45 @@
+#!/usr/bin/env ruby
+
+require "bundler/setup"
+require 'spyduino_server'
+require 'socket'
+
+Thread.abort_on_exception=true
+
+
+server = TCPServer.open 1337
+puts "Listening on port 1337"
+
+loop {
+  Thread.start(server.accept) do |client|
+    puts "New Client"
+    parser = SpyduinoServer::Utils::ProtocolParser.new(client)
+    position_calculator = SpyduinoServer::Utils::PositionCalculator.new
+    prev_position = nil
+    loop do
+      package = parser.get_package
+      next if package.empty?
+
+      position = position_calculator.get_position(package)
+      next unless position
+
+      p position
+      position.save
+      #if prev_position
+      #  distance = (prev_position.vector - position.vector).norm / 1000.0
+      #  time =  (position.timestamp - prev_position.timestamp) * 24
+
+      #  if(distance/time <= 10.0)
+      #    puts "Saved"
+      #    position.save
+      #    prev_position = position
+      #  else
+      #    puts "Not saved"
+      #  end
+      #else
+      #  position.save
+      #  prev_position = position
+      #end
+    end
+  end
+}

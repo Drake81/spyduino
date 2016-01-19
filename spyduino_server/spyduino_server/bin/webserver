@@ -1,0 +1,4 @@
+#!/usr/bin/env ruby
+require './webapp/webapp.rb'
+
+Webapp.run!

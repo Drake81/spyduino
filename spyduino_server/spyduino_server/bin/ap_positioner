@@ -1,0 +1,83 @@
+#!/usr/bin/env ruby
+
+require "bundler/setup"
+require 'spyduino_server'
+
+unless ARGV[0]
+  puts "Usage: ap_positioner INTERFACE"
+  exit(1)
+end
+
+interface = ARGV[0]
+
+until ARGV.empty? do
+  ARGV.shift
+end
+
+def scan_aps(interface)
+  puts "\n\nSanning...\n\n"
+  raw_data = `iwlist #{interface} scanning`
+
+  aps = raw_data.split(/Cell \d+ \- /)[1..-1].map{ |l| l.split("\n").map(&:strip) }
+
+  aps.inject [] do |aps, ap|
+    next aps unless ap[2].match(/Frequency:(\d.\d)/)[1] == "2.4"
+
+    aps << {
+      mac: ap.first.gsub("Address: ",""),
+      ssid: ap[5].match(/ESSID\:\"(.+)\"/)[1],
+      signal_strength: ap[3].match(/Signal level=(-\d+) dBm/)[1].to_i
+    }
+
+    aps.sort_by {|a| a[:signal_strength]}
+  end
+end
+
+def get_coordinates
+  x = ""
+  y = ""
+  while x.to_f.to_s != x
+    print "Enter the x coordinate: "
+    x = gets.chomp
+  end
+
+  while y.to_f.to_s != y
+    print "Enter the y coordinate: "
+    y = gets.chomp
+  end
+
+  [x,y]
+end
+
+
+
+aps = scan_aps(interface)
+
+loop do
+  aps.each_with_index do |ap,i|
+    puts "[#{i}] #{ap[:ssid]} | #{ap[:mac]} | #{ap[:signal_strength]}dBm"
+  end
+  puts "------------------------------------------------------------------"
+  print "[0..#{aps.count-1}] - Select an Access Point, r - Rescan, e - Exit: "
+  choise = gets.chomp
+
+  break if choise == "e"
+  if choise == "r"
+    aps = scan_aps(interface)
+    next
+  end
+
+  if choise.to_i.to_s != choise || !(0..aps.count-1).include?(choise.to_i)
+    puts "Please enter a valid number or [re]\n\n"
+    next
+  end
+
+  ap=aps[choise.to_i]
+  position = get_coordinates
+
+  if SpyduinoServer::Utils::AccessPoint.new(ap[:ssid],ap[:mac],position).save
+    puts "AP saved\n"
+  else
+    puts "Error\n"
+  end
+end
